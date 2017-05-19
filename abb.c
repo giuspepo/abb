@@ -61,9 +61,9 @@ abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_
 
 //************** PRIMITIVAS DEL ARBOL ****************
 abb_t* abb_crear(abb_comparar_clave_t cmp, abb_destruir_dato_t destruir_dato){
-	abb_t* arbol = malloc( 	abb_t* arbol = malloc( sizeof( abb_t ));
+	abb_t* arbol = malloc( 	abb_t* arbol = malloc( sizeof( abb_t )));
 	if (! arbol ) return NULL;
-	arbol->cant = 0
+	arbol->cant = 0;
 	arbol->cmp = cmp;
 	arbol->funcion_destruir = destruir_dato;
 	arbol->raiz = NULL;
