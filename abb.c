@@ -26,7 +26,7 @@ struct abb_iter{
 
 // Crea una hoja sin hijos, con referencia al padre.
 // Se guarda en el el dato y una copia de la clave
-abb_nodo_t* crear_nodo( const char *clave, void *dato){ //, abb_nodo_t* padre){
+abb_nodo_t* crear_nodo( const char *clave, void *dato, abb_nodo_t* padre){
 	abb_nodo_t* nodo = malloc( sizeof( abb_nodo_t ));
 	if (! nodo ) return NULL;
 	
@@ -42,7 +42,6 @@ abb_nodo_t* crear_nodo( const char *clave, void *dato){ //, abb_nodo_t* padre){
 	nodo->izq = NULL;
 	nodo->der = NULL;
 	nodo->padre = padre;
-	//nodo->padre = padre;
 	return nodo;
 }
 
@@ -98,6 +97,26 @@ bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *da
 bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
 	if (! arbol) return false;
 	return abb_guardar_aux( arbol, arbol->raiz, clave, dato, NULL);
+}
+
+void abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, abb_nodo_t* padre){
+	abb_nodo_t* nodo_borrar = buscar_dato(arbol->raiz, clave, arbol->cmp);
+	abb_nodo_t* padre = nodo_borrar->padre;
+	/*
+	if (! nodo->borrar->izq && ! nodo_borrar->der){
+		if (padre->izq == nodo_borrar){
+			padre->izq = NULL;
+		}
+		padre->der = NULL;
+		void dato = nodo_borrar->dato;
+		abb_destruir_aux(nodo_borrar, arbol->destruir_dato);
+		arbol->cant--;
+		return dato;
+	}
+	if (! nodo_borrar->izq || ! nodo_borrar->der){
+		
+	}
+	*/
 }
 
 void *abb_borrar(abb_t *arbol, const char *clave){
