@@ -26,7 +26,7 @@ struct abb_iter{
 
 // Crea una hoja sin hijos, con referencia al padre.
 // Se guarda en el el dato y una copia de la clave
-abb_nodo_t* crear_nodo( const char *clave, void *dato, abb_nodo_t* padre){
+abb_nodo_t* crear_nodo( const char *clave, void *dato){ //, abb_nodo_t* padre){
 	abb_nodo_t* nodo = malloc( sizeof( abb_nodo_t ));
 	if (! nodo ) return NULL;
 	
@@ -42,6 +42,7 @@ abb_nodo_t* crear_nodo( const char *clave, void *dato, abb_nodo_t* padre){
 	nodo->izq = NULL;
 	nodo->der = NULL;
 	nodo->padre = padre;
+	//nodo->padre = padre;
 	return nodo;
 }
 
@@ -52,10 +53,10 @@ abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_
 		return nodo;
 
 	if ( cmp( nodo->clave, clave ) < 0)
-		return abb_pertenece( nodo->izq, clave , cmp);
+		return buscar_dato( nodo->izq, clave , cmp);
 
 	if ( cmp( nodo->clave, clave ) < 0)
-		return abb_pertenece( nodo->der, clave, cmp);
+		return buscar_dato( nodo->der, clave, cmp);
 	return NULL;
 }
 
@@ -70,22 +71,33 @@ abb_t* abb_crear(abb_comparar_clave_t cmp, abb_destruir_dato_t destruir_dato){
 	return arbol;
 }
 
-bool abb_guardar_aux(abb_t *arbol, const char *clave, void *dato){
-	abb_nodo_t* nodo = crear_nodo( clave, dato, arbol->raiz);
-	if (! nodo) 
-		return false;
-	if ( arbol->nodo == NULL )
-		arbol->raiz = nodo;
-		
-	// buscar pos derecha o izquiera preorder para guardar
-		
-	return true;	
+bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *dato, abb_nodo_t* padre){
+	
+	if ( arbol->raiz == NULL ){
+		abb_nodo_t* nuevo = crear_nodo( clave, dato, padre);
+		if (! nuevo ) 
+			return false;
+		nodo = nuevo;
+		arbol->cant++;
+		return true;
+	}
+
+	if (arbol->cmp(arbol->raiz->clave, clave) == 0){
+		if (arbol->destruir_dato != NULL){
+			arbol->destruir_dato(arbol->raiz->dato);
+		}
+		nodo->raiz->dato = dato;
+		return true;
+	}
+	if (arbol->cmp(arbol->raiz->clave, clave) < 0)
+		return abb_guardar_aux(arbol, arbol->raiz->izq, clave, dato, arbol->raiz);
+	if (arbol->cmp(arbol->raiz->clave, clave) > 0)
+		return abb_guardar_aux(arbol, arbol->raiz->der, clave, dato, arbol->raiz);	
 }
 
 bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
-	if ( arbol == NULL ) 
-		return NULL;
-	
+	if (! arbol) return false;
+	return abb_guardar_aux( arbol, arbol->raiz, clave, dato, NULL);
 }
 
 void *abb_borrar(abb_t *arbol, const char *clave){
