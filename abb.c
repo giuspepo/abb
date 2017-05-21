@@ -45,7 +45,7 @@ abb_nodo_t* crear_nodo( const char *clave, void *dato, abb_nodo_t* padre){
 	return nodo;
 }
 
-// Devuelve arbol de la clave buscada
+// Devuelve nodo arbol de la clave buscada
 abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_t cmp){
 	if (! nodo ) return NULL;
 	if ( cmp( nodo->clave, clave ) == 0)
@@ -57,6 +57,16 @@ abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_
 	if ( cmp( nodo->clave, clave ) < 0)
 		return buscar_dato( nodo->der, clave, cmp);
 	return NULL;
+}
+
+// Devuelve nodo arbol de mayor valor
+abb_nodo_t* buscar_mayor(abb_nodo_t* nodo, abb_comparar_clave_t cmp){
+	if ( nodo == NULL ) 
+		return;
+	// busco mayor siempre a la derecha
+	if ( cmp ( nodo->der->clave, nodo->clave) < 0)
+		return nodo;
+	buscar_mayor( nodo->der, cmp);
 }
 
 //************** PRIMITIVAS DEL ARBOL ****************
@@ -97,29 +107,84 @@ bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *da
 
 bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
 	if (! arbol) return false;
-	return abb_guardar_aux( arbol, arbol->raiz, clave, dato, NULL);
+	return abb_guardar_aux( arbol, arbol->raiz, clave, dato);
 }
 
-void abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, abb_nodo_t* padre){
-	
-	/*
-	abb_nodo_t* nodo_borrar = buscar_dato(arbol->raiz, clave, arbol->cmp);
-	abb_nodo_t* padre = nodo_borrar->padre;
-
-	if (! nodo->borrar->izq && ! nodo_borrar->der){
-		if (padre->izq == nodo_borrar){
-			padre->izq = NULL;
-		}
+// ****************** FUNCIONES PARA BORRAR ****************
+abb_nodo_t* borrar_sin_hijos(abb_nodo_t* nodo){
+	if (nodo->padre->izq == nodo)
+		padre->izq = NULL;
+	if (nodo->padre->der == nodo)
 		padre->der = NULL;
-		void dato = nodo_borrar->dato;
-		abb_destruir_aux(nodo_borrar, arbol->destruir_dato);
-		arbol->cant--;
-		return dato;
+
+	return nodo;
+}
+
+abb_nodo_t* borrar_un_hijo(abb_nodo_t* nodo){
+	if ( nodo->izq != NULL){
+		if ( nodo->padre->izq == nodo ) // 1. si padre esta en izquiera le asigno hijo de nodo izquiero
+			nodo->padre->izq = nodo->izq;
+
+		nodo->padre->der = nodo->izq; // 2. padre en la derecha le asigno hijo izquierdo
+		nodo->izq->padre = nodo->padre;
 	}
-	if (! nodo_borrar->izq || ! nodo_borrar->der){
-		
+	if ( nodo->der != NULL){
+		if ( nodo->padre->izq == nodo ) //1. 
+			nodo->padre->izq = nodo->der;
+
+		nodo->padre->der = nodo->der; //2.
+		nodo->der->padre = nodo->padre;
 	}
-	*/
+	return nodo;
+}
+
+void swap (abb_nodo_t* nodo_borrar, abb_nodo_t* nodo_mayor) {
+	abb_nodo_t* guardar = nodo_borrar;
+	*nodo_borrar = *nodo_mayor;
+	*nodo_mayor = guardar;
+}
+
+abb_nodo_t* borrar_dos_hijos( abb_noto_t* nodo, abb_comparar_clave_t cmp){
+	// buscar mayor de la izquierda
+	abb_nodo_t* nodo_mayor = buscar_mayor( nodo->izq , cmp);
+	// swap de nodo con nodo mayor
+	swap( nodo, nodo_mayor)
+	// borrar nodo simple con un hijo
+	abb_nodo_t* nodo_borrar = borrar_sin_hijos(nodo);
+	return nodo_borrar;
+}
+
+void* abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave){
+
+	if ( nodo != NULL ){
+		if ( arbol->cmp( nodo->clave, clave ) < 0 )
+			abb_borrar_aux( arbol, nodo->izq, clave );
+
+		if ( arbol->cmp( nodo->clave, clave ) > 0 )
+			abb_borrar_aux( arbol, nodo->der, clave);
+
+		if ( arbol->cmp( nodo->clave, clave ) == 0 ){
+			
+			// CASO SIN NINGUN HIJO
+			if ( nodo->izq == NULL && nodo->der == NULL )
+				abb_nodo_t* nodo_borrar = borrar_sin_hijos(nodo);
+			
+			// CASO CON UN HIJO
+			//if ( (nodo->izq != NULL && !nodo->der ) || (nodo->der != NULL && !nodo->izq ) ){
+			if ( nodo->der != NULL || nodo->izq != NULL )
+				abb_nodo_t* nodo_borrar = borrar_un_hijo(nodo);
+			
+			// CASO CON DOS HIJOS
+			if ( nodo->izq != NULL && nodo->der != NULL ){
+				abb_nodo_t* nodo_borrar =borrar_dos_hijos(nodo, arbol->cmp);
+			}
+			void dato = nodo_borrar->dato;
+			abb_destruir_aux(nodo_borrar, arbol->destruir_dato);
+			arbol->cant--;
+			return dato;
+		}
+	}
+	return NULL;
 }
 
 void *abb_borrar(abb_t *arbol, const char *clave){
