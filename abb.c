@@ -31,7 +31,7 @@ abb_nodo_t* crear_nodo( const char *clave, void *dato, abb_nodo_t* padre){
 	if (! nodo ) return NULL;
 	
 	char* clave_aux = malloc( strlen( clave ) + 1);
-	if (clave_aux == NULL){
+	if ( clave_aux == NULL ){
 		free( nodo );
 		return NULL;
 	}
@@ -70,28 +70,29 @@ abb_t* abb_crear(abb_comparar_clave_t cmp, abb_destruir_dato_t destruir_dato){
 	return arbol;
 }
 
-bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *dato, abb_nodo_t* padre){
+bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *dato){
 	
-	if ( arbol->raiz == NULL ){
-		abb_nodo_t* nuevo = crear_nodo( clave, dato, padre);
+	if ( nodo == NULL ){
+		abb_nodo_t* nuevo = crear_nodo( clave, dato, nodo->padre); //llega al final de hojas, el padre es el padre de null??
 		if (! nuevo ) 
 			return false;
+		if (! arbol->raiz ) arbol->raiz = nuevo;
 		nodo = nuevo;
 		arbol->cant++;
 		return true;
 	}
 
-	if (arbol->cmp(arbol->raiz->clave, clave) == 0){
+	if (arbol->cmp(nodo->clave, clave) == 0){
 		if (arbol->destruir_dato != NULL){
-			arbol->destruir_dato(arbol->raiz->dato);
+			arbol->destruir_dato(nodo->dato);
 		}
-		nodo->raiz->dato = dato;
+		nodo->dato = dato;
 		return true;
 	}
-	if (arbol->cmp(arbol->raiz->clave, clave) < 0)
-		return abb_guardar_aux(arbol, arbol->raiz->izq, clave, dato, arbol->raiz);
-	if (arbol->cmp(arbol->raiz->clave, clave) > 0)
-		return abb_guardar_aux(arbol, arbol->raiz->der, clave, dato, arbol->raiz);	
+	if (arbol->cmp(nodo->clave, clave) < 0)
+		return abb_guardar_aux(arbol, nodo->izq, clave, dato);
+	if (arbol->cmp(nodo->clave, clave) > 0)
+		return abb_guardar_aux(arbol, nodo->der, clave, dato);	
 }
 
 bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
@@ -100,9 +101,11 @@ bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
 }
 
 void abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, abb_nodo_t* padre){
+	
+	/*
 	abb_nodo_t* nodo_borrar = buscar_dato(arbol->raiz, clave, arbol->cmp);
 	abb_nodo_t* padre = nodo_borrar->padre;
-	/*
+
 	if (! nodo->borrar->izq && ! nodo_borrar->der){
 		if (padre->izq == nodo_borrar){
 			padre->izq = NULL;
