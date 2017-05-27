@@ -53,7 +53,7 @@ abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_
 	if ( cmp( nodo->clave, clave ) < 0){
 		return buscar_dato( nodo->izq, clave , cmp);
 	}
-	if ( cmp( nodo->clave, clave ) < 0){
+	if ( cmp( nodo->clave, clave ) > 0){
 		return buscar_dato( nodo->der, clave, cmp);
 	}
 	return NULL;
@@ -87,10 +87,15 @@ bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *da
 		if (arbol->funcion_destruir != NULL){
 			arbol->funcion_destruir(nodo->dato);
 		}
-		else free( nodo->dato );
+		else free( nodo->dato ); //No necesariamente. 
+		//Si el dato esta en stack (no la creaste con malloc)
+		//o es una clave en code_segment (char* nombre = "Juanito";) no necesita elimarse.
+		//Si se elimina con free, free estara como el destruir_dato del arbol.
 		nodo->dato = dato;
 		return true;
 	}
+	//Me parece que el cmp devuelve < 0 cuando la primera cadena es menor a la segunda.
+	//Aca estas diciendo si nodo->clave es menor que clave;
 	if (arbol->cmp(nodo->clave, clave) < 0){ //error
 		return abb_guardar_aux(arbol, nodo->izq, clave, dato, nodo); 
 	}
@@ -114,20 +119,23 @@ abb_nodo_t* borrar_un_hijo(abb_nodo_t* nodo){
 	if ( nodo->izq != NULL){
 		if ( nodo->padre->izq == nodo ) // 1. si padre esta en izquiera le asigno hijo de nodo izquiero
 			nodo->padre->izq = nodo->izq;
-
-		nodo->padre->der = nodo->izq; // 2. padre en la derecha le asigno hijo izquierdo
+		//sin el else nodo->izq pasara tambien a nodo->padre->der, y pierdes la derecha original del padre.
+		else nodo->padre->der = nodo->izq; // 2. padre en la derecha le asigno hijo izquierdo
 		nodo->izq->padre = nodo->padre;
 	}
 	if ( nodo->der != NULL){
 		if ( nodo->padre->izq == nodo ) //1. 
 			nodo->padre->izq = nodo->der;
 
-		nodo->padre->der = nodo->der; //2.
+		else nodo->padre->der = nodo->der; //2.
 		nodo->der->padre = nodo->padre;
 	}
 	return nodo;
 }
 
+
+//Se puede hacer esto? = copia valores y los asigna a variables, y no creo que estructuras puedan copiarse.
+//Pero si funciona, no tengo problema-.
 void swap (abb_nodo_t* nodo_borrar, abb_nodo_t* nodo_mayor){
 	abb_nodo_t guardar = *nodo_borrar;
 	*nodo_borrar = *nodo_mayor;
@@ -179,16 +187,19 @@ void* abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave){
 			if ( nodo->izq == NULL && nodo->der == NULL )
 				nodo_borrar = borrar_sin_hijos(nodo);
 			
-			// CASO CON UN HIJO
-			//if ( (nodo->izq != NULL && !nodo->der ) || (nodo->der != NULL && !nodo->izq ) ){
-			if ( nodo->der != NULL || nodo->izq != NULL )
-				nodo_borrar = borrar_un_hijo(nodo);
-			
 			// CASO CON DOS HIJOS
 			if ( nodo->izq != NULL && nodo->der != NULL ){
 				nodo_borrar = borrar_dos_hijos(nodo, arbol->cmp);
 			}
+			
+			// CASO CON UN HIJO
+			//if ( (nodo->izq != NULL && !nodo->der ) || (nodo->der != NULL && !nodo->izq ) ){
+			//if ( nodo->der != NULL || nodo->izq != NULL )
+			//Caso restante (solo hay un hijo)
+			else nodo_borrar = borrar_un_hijo(nodo);
+			
 			void* dato = nodo_borrar->dato;
+			//Aca entiendo que quiere borrar los hijos de nodo_borrar, a los cuales el nodo aun apunta.
 			abb_destruir_aux(arbol,nodo_borrar);
 			arbol->cant--;
 			return dato;
