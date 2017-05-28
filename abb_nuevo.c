@@ -20,6 +20,7 @@ struct abb{
 };
 
 struct abb_iter{
+	abb_t* arbol; //Faltaba el arbol.
 	pila_t* pila;
 	abb_nodo_t* actual;
 };
@@ -27,7 +28,7 @@ struct abb_iter{
 // ************* FUNCIONES AUXILIARES **************
 abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_t cmp){
 	if (! nodo ) return NULL;
-	int comp = cmp( nodo->clave, clave);
+	int comp = cmp(nodo->clave, clave);
 	if ( comp == 0)
 		return nodo;
 	if ( comp > 0)
@@ -40,7 +41,7 @@ abb_nodo_t* buscar_dato(abb_nodo_t* nodo, const char* clave, abb_comparar_clave_
 
 abb_nodo_t* buscar_mayor(abb_nodo_t* nodo){
 	if ( nodo == NULL ) 
-		return nodo->padre;
+		return NULL; //El nodo no existe, como obtienes el padre? ~GIUS
 	// busco mayor siempre a la derecha
 	while ( nodo->der != NULL )
 		nodo = nodo->der;
@@ -101,12 +102,13 @@ bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *da
 		abb_nodo_t* nuevo = crear_nodo( clave, dato, padre);
 		if (! nuevo ) 
 			return false;
-		/*
+		
 		if ( padre != NULL){
-			if ( padre->izq == nodo ) padre->izq = nuevo;
-			if ( padre->izq == nodo ) padre->der = nuevo;
-		}*/
-		nodo = nuevo;
+			int c = arbol->cmp(clave, padre->clave);
+			if (c < 0) padre->izq = nuevo;
+			else padre->der = nuevo;
+		}
+		//nodo = nuevo; Esto no nos ayuda. Nodo es una variable que guarda el NULL y despues no la volvemos a ver
 		arbol->cant++;
 		return true;
 	}
@@ -129,12 +131,15 @@ bool abb_guardar_aux(abb_t* arbol, abb_nodo_t *nodo, const char *clave, void *da
 
 bool abb_guardar(abb_t *arbol, const char *clave, void *dato){
 	if (! arbol) return false;
+	
+	/* Esto no hara falta, cumple ya la condicion inicial if (!nodo), junto a padre == NULL.
 	if (arbol->cant == 0){
 		abb_nodo_t* nuevo = crear_nodo(clave,dato,arbol->raiz);
 		arbol->raiz = nuevo;
 		arbol->cant++;
 		return true;
 	}
+	*/
 	return abb_guardar_aux( arbol, arbol->raiz, clave, dato, NULL);
 }
 
@@ -202,6 +207,36 @@ abb_nodo_t* borrar_dos_hijos(abb_t* arbol, abb_nodo_t* nodo, abb_nodo_t* padre){
 	return destruir_nodo(nodo);
 }
 
+//Este es una alternativa para borrar que cubre todos los nodos, tengan dos hijos, uno o ninguno. ~GIUS
+void* borrar_alt(abb_t* arbol, abb_nodo_t* nodo, abb_nodo_t* padre){
+	
+	abb_nodo_t* nodo_mayor;
+	if (!nodo->izq) nodo_mayor = nodo->der;
+	else nodo_mayor = buscar_mayor( nodo->izq );
+	
+	if (! padre) arbol->raiz = nodo_mayor;
+	else {
+		int c = arbol->cmp(nodo->clave,padre->clave);
+		if (c < 0) padre->izq = nodo_mayor;
+		else padre->der = nodo_mayor;
+	}
+	
+	if (nodo_mayor ) {
+		//Estas condiciones aplican solo cuando nodo_mayor viene del fondo de la izq
+		if (nodo_mayor->padre != nodo) {
+			nodo_mayor->padre->der = nodo_mayor->izq;
+			nodo_mayor->izq = nodo->izq;
+		}
+		//Y esta cuando nodo_mayor viene de la izq y tiene razon para no tener der.
+		if (nodo_mayor != nodo->der) nodo_mayor->der = nodo->der;
+		nodo_mayor->padre = padre;
+	}
+	
+	arbol->cant--;
+	return destruir_nodo(nodo);
+}
+
+
 void* abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, abb_nodo_t* padre, const char *clave){
 	int comp = arbol->cmp( nodo->clave, clave );
 	if ( comp > 0 )
@@ -210,6 +245,7 @@ void* abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, abb_nodo_t* padre, const ch
 		abb_borrar_aux( arbol, nodo->der, nodo, clave);
 
 	if ( comp == 0 ){
+		/*
 		if ( !nodo->izq && !nodo->der )
 			return borrar_sin_hijos(arbol, nodo, padre);
 		
@@ -218,9 +254,13 @@ void* abb_borrar_aux(abb_t* arbol, abb_nodo_t *nodo, abb_nodo_t* padre, const ch
 
 		if ( nodo->izq && nodo->der )
 			return borrar_dos_hijos(arbol, nodo, padre);
+		*/
+		return borrar_alt(arbol, nodo, padre);
 	}
 	return NULL;
 }
+
+//Si el padre viene en la estructura del nodo, es necesario llamarlo aparte? ~GIUS
 
 void *abb_borrar(abb_t *arbol, const char *clave){
 	if (! arbol ) return NULL;
@@ -247,19 +287,15 @@ void abb_destruir(abb_t *arbol){
 	
 //************* ITERADOR INTERNO **********************
 
-void abb_in_order_aux(abb_nodo_t* nodo, bool visitar(const char *, void *, void *), void *extra){
-	if (! nodo ) return;
-	
-	abb_in_order_aux( nodo->izq, visitar, extra );
-	if ( visitar ){
-		visitar( nodo->clave, nodo->dato, extra );
-	}
-	abb_in_order_aux( nodo->der, visitar, extra );
+bool abb_in_order_aux(abb_nodo_t* nodo, bool visitar(const char *, void *, void *), void *extra){
+	if (! nodo ) return true; //Sigue iterando
+	if (!abb_in_order_aux( nodo->izq, visitar, extra )) return false; //y la iteracion termina ahi.
+	if (!visitar( nodo->clave, nodo->dato, extra )) return false;
+	return abb_in_order_aux( nodo->der, visitar, extra );
 }
 
 void abb_in_order(abb_t *arbol, bool visitar(const char *, void *, void *), void *extra){
 	if (! arbol ) return;
-	
 	abb_in_order_aux(arbol->raiz, visitar,extra);
 }
 
@@ -276,6 +312,7 @@ abb_iter_t *abb_iter_in_crear(const abb_t *arbol){
 		nodo = nodo->izq;
 	}
 	iter->actual = nodo;
+	iter->arbol = arbol;
 	return iter;
 }
 
